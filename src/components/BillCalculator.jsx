@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
-import { Users, Calculator, RotateCcw, Edit3, Check, X, Plus, UserPlus } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Users, Calculator, RotateCcw, Edit3, Check, X, Plus, UserPlus, Share2, Camera } from 'lucide-react'
+import html2canvas from 'html2canvas'
+import { saveAs } from 'file-saver'
 
 const BillCalculator = ({ extractedData, onReset }) => {
   const [items, setItems] = useState([])
@@ -13,6 +15,9 @@ const BillCalculator = ({ extractedData, onReset }) => {
   const [people, setPeople] = useState([])
   const [serviceFee, setServiceFee] = useState(0)
   const [deliveryFee, setDeliveryFee] = useState(0)
+  
+  // Ref untuk screenshot
+  const resultsRef = useRef(null)
 
   useEffect(() => {
     if (extractedData) {
@@ -239,28 +244,147 @@ const BillCalculator = ({ extractedData, onReset }) => {
     ))
   }
 
-  const updatePersonItemQuantity = (personId, itemIndex, quantity) => {
-    setPeople(people.map(person => {
-      if (person.id === personId) {
-        const selectedItems = [...person.selectedItems]
-        const existingIndex = selectedItems.findIndex(s => s.itemIndex === itemIndex)
-        
-        if (quantity > 0) {
-          if (existingIndex >= 0) {
-            selectedItems[existingIndex] = { itemIndex, quantity }
-          } else {
-            selectedItems.push({ itemIndex, quantity })
+  // Fungsi untuk screenshot dan share
+  const takeScreenshot = async () => {
+    if (!resultsRef.current) return
+    
+    try {
+      const canvas = await html2canvas(resultsRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        allowTaint: true
+      })
+      
+      // Convert canvas to blob
+      canvas.toBlob((blob) => {
+        if (blob) {
+          saveAs(blob, `split-bill-${new Date().toISOString().slice(0, 10)}.png`)
+        }
+      })
+    } catch (error) {
+      console.error('Error taking screenshot:', error)
+      alert('Gagal mengambil screenshot')
+    }
+  }
+
+  const shareToWhatsApp = async () => {
+    if (!resultsRef.current) return
+    
+    try {
+      // Generate text summary
+      let message = "🧾 *SPLIT BILL CALCULATOR*\n\n"
+      
+      // Add items summary based on mode
+      if (showSplitPerPerson && people.length > 0) {
+        message += "📋 *PEMBAGIAN PER ORANG:*\n"
+        people.forEach(person => {
+          if (person.selectedItems && person.selectedItems.length > 0) {
+            const personTotal = calculatePersonTotal(person)
+            message += `👤 *${person.customName || person.name}:*\n`
+            
+            person.selectedItems.forEach(selection => {
+              const item = items[selection.itemIndex]
+              if (item) {
+                const itemSubtotal = (item.unitPrice || 0) * selection.quantity
+                message += `   • ${selection.quantity}x ${item.name} @ ${formatCurrency(item.unitPrice || 0)} = ${formatCurrency(itemSubtotal)}\n`
+              }
+            })
+            
+            message += `   💰 Total: ${formatCurrency(personTotal)}\n\n`
           }
-        } else {
-          if (existingIndex >= 0) {
-            selectedItems.splice(existingIndex, 1)
+        })
+        
+        // Add total summary for split per person
+        const totalAllPeople = people.reduce((sum, person) => sum + calculatePersonTotal(person), 0)
+        message += `🎯 *TOTAL SEMUA ORANG: ${formatCurrency(totalAllPeople)}*\n\n`
+        
+      } else {
+        // Show detailed calculation breakdown
+        message += "📋 *DETAIL PERHITUNGAN:*\n"
+        items.forEach((item, index) => {
+          if ((item.quantity || 0) > 0) {
+            const itemPrice = item.totalPrice || 0
+            const itemDiscount = (manualDiscount * itemPrice) / totals.itemsTotal || 0
+            const itemTotal = itemPrice - itemDiscount
+            
+            message += `${index + 1}. *${item.quantity || 1}x ${item.name}*\n`
+            message += `   • Harga Satuan: ${formatCurrency(item.unitPrice || 0)}\n`
+            message += `   • Subtotal: ${formatCurrency(itemPrice)}\n`
+            if (itemDiscount > 0) {
+              message += `   • Potongan: -${formatCurrency(itemDiscount)}\n`
+            }
+            message += `   • Total: ${formatCurrency(itemTotal)}\n`
+            message += `   • Per qty: ${formatCurrency(itemTotal / (item.quantity || 1))}\n\n`
+          }
+        })
+        
+        // Add calculation summary
+        message += "💳 *RINGKASAN BIAYA:*\n"
+        message += `Subtotal Item: ${formatCurrency(totals.itemsTotal)}\n`
+        if (totals.discount > 0) {
+          message += `Total Diskon: -${formatCurrency(totals.discount)}\n`
+        }
+        message += `Subtotal setelah Diskon: ${formatCurrency(totals.subtotal)}\n`
+        if (totals.serviceFee > 0) {
+          message += `Biaya Layanan: ${formatCurrency(totals.serviceFee)}\n`
+        }
+        if (totals.deliveryFee > 0) {
+          message += `Biaya Pengiriman: ${formatCurrency(totals.deliveryFee)}\n`
+        }
+        message += `\n🎯 *TOTAL KESELURUHAN: ${formatCurrency(totals.finalTotal)}*`
+      }
+      
+      // Open WhatsApp with message
+      const encodedMessage = encodeURIComponent(message)
+      const whatsappUrl = `https://wa.me/?text=${encodedMessage}`
+      window.open(whatsappUrl, '_blank')
+      
+    } catch (error) {
+      console.error('Error sharing to WhatsApp:', error)
+      alert('Gagal membagikan ke WhatsApp')
+    }
+  }
+
+  const updatePersonItemQuantity = (personId, itemIndex, newQuantity) => {
+    const remainingQty = getRemainingQuantity(itemIndex)
+    const person = people.find(p => p.id === personId)
+    const currentSelection = person?.selectedItems.find(s => s.itemIndex === itemIndex)
+    const currentQty = currentSelection ? currentSelection.quantity : 0
+    
+    // Validasi: quantity baru tidak boleh melebihi sisa yang tersedia + quantity saat ini
+    const maxAllowed = remainingQty + currentQty
+    const validatedQuantity = Math.min(Math.max(0, newQuantity), maxAllowed)
+    
+    setPeople(prevPeople => 
+      prevPeople.map(person => {
+        if (person.id === personId) {
+          const existingSelectionIndex = person.selectedItems.findIndex(s => s.itemIndex === itemIndex)
+          
+          if (validatedQuantity === 0) {
+            // Hapus item jika quantity 0
+            return {
+              ...person,
+              selectedItems: person.selectedItems.filter(s => s.itemIndex !== itemIndex)
+            }
+          } else {
+            if (existingSelectionIndex >= 0) {
+              // Update quantity yang sudah ada
+              const updatedSelections = [...person.selectedItems]
+              updatedSelections[existingSelectionIndex] = { itemIndex, quantity: validatedQuantity }
+              return { ...person, selectedItems: updatedSelections }
+            } else {
+              // Tambah item baru
+              return {
+                ...person,
+                selectedItems: [...person.selectedItems, { itemIndex, quantity: validatedQuantity }]
+              }
+            }
           }
         }
-        
-        return { ...person, selectedItems }
-      }
-      return person
-    }))
+        return person
+      })
+    )
   }
 
   const toggleItemForPerson = (personId, itemIndex) => {
@@ -288,6 +412,25 @@ const BillCalculator = ({ extractedData, onReset }) => {
       deliveryFee,
       finalTotal
     }
+  }
+
+  // Fungsi untuk menghitung sisa quantity yang tersedia per item
+  const getRemainingQuantity = (itemIndex) => {
+    const item = items[itemIndex]
+    if (!item) return 0
+    
+    const maxQty = item.quantity || 1
+    let totalSelected = 0
+    
+    // Hitung total quantity yang sudah dipilih semua orang untuk item ini
+    people.forEach(person => {
+      const selectedItem = person.selectedItems.find(s => s.itemIndex === itemIndex)
+      if (selectedItem) {
+        totalSelected += selectedItem.quantity
+      }
+    })
+    
+    return Math.max(0, maxQty - totalSelected)
   }
 
   const calculatePersonTotal = (person) => {
@@ -343,10 +486,24 @@ const BillCalculator = ({ extractedData, onReset }) => {
   return (
     <div className="bill-calculator">
       <div className="calculator-header">
-        <h2>Hasil Scan Struk</h2>
-        <p className="platform-info">
-          Platform: <strong>{extractedData.platform}</strong>
-        </p>
+        <div className="header-content">
+          <div className="header-text">
+            <h2>Hasil Scan Struk</h2>
+            <p className="platform-info">
+              Platform: <strong>{extractedData.platform}</strong>
+            </p>
+          </div>
+          <div className="header-actions">
+            <button onClick={takeScreenshot} className="action-btn screenshot-btn" title="Screenshot">
+              <Camera size={20} />
+              Screenshot
+            </button>
+            <button onClick={shareToWhatsApp} className="action-btn whatsapp-btn" title="Share ke WhatsApp">
+              <Share2 size={20} />
+              Share WA
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="calculator-content">
@@ -536,13 +693,14 @@ const BillCalculator = ({ extractedData, onReset }) => {
                           const selectedItem = person.selectedItems.find(s => s.itemIndex === index)
                           const selectedQty = selectedItem ? selectedItem.quantity : 0
                           const maxQty = item.quantity || 1
+                          const remainingQty = getRemainingQuantity(index) + selectedQty
                           
                           return (
                             <div key={index} className="item-selection">
                               <div className="item-info">
                                 <span className="item-name">
                                   {item.name} - {formatCurrency(item.unitPrice || 0)}
-                                  <small> (Tersedia: {maxQty})</small>
+                                  <small> (Tersedia: {remainingQty})</small>
                                 </span>
                               </div>
                               <div className="quantity-selector">
@@ -550,14 +708,24 @@ const BillCalculator = ({ extractedData, onReset }) => {
                                 <input
                                   type="number"
                                   min="0"
-                                  max={maxQty}
+                                  max={remainingQty}
                                   value={selectedQty}
                                   onChange={(e) => updatePersonItemQuantity(person.id, index, parseInt(e.target.value) || 0)}
                                   className="qty-input"
+                                  disabled={remainingQty === 0}
+                                  style={{
+                                    backgroundColor: remainingQty === 0 ? '#f5f5f5' : 'white',
+                                    color: remainingQty === 0 ? '#999' : 'black'
+                                  }}
                                 />
                                 <span className="subtotal">
                                   = {formatCurrency((item.unitPrice || 0) * selectedQty)}
                                 </span>
+                                {remainingQty === 0 && selectedQty === 0 && (
+                                  <small style={{ color: '#ff6b6b', marginLeft: '8px' }}>
+                                    Habis
+                                  </small>
+                                )}
                               </div>
                             </div>
                           )
@@ -645,7 +813,7 @@ const BillCalculator = ({ extractedData, onReset }) => {
         </div>
 
         {/* Calculation Results */}
-        <div className="results-section">
+        <div className="results-section" ref={resultsRef}>
           <h3>
             <Calculator size={20} />
             Hasil Perhitungan

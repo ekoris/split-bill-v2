@@ -1,14 +1,23 @@
 /* App Layout */
 .app {
   min-height: 100vh;
+  width: 100%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-attachment: fixed;
   padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .app-header {
   text-align: center;
   color: white;
   margin-bottom: 2rem;
+  width: 100%;
+  max-width: 1200px;
 }
 
 .app-header h1 {
@@ -25,8 +34,12 @@
 }
 
 .app-main {
-  max-width: 800px;
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* Image Upload Styles */
@@ -35,6 +48,9 @@
   border-radius: 16px;
   padding: 2rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .dropzone {
@@ -160,13 +176,76 @@
   border-radius: 16px;
   padding: 2rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .calculator-header {
-  text-align: center;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
   border-bottom: 2px solid #f1f5f9;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.header-text {
+  text-align: left;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.screenshot-btn {
+  background: #3b82f6;
+  color: white;
+}
+
+.screenshot-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.whatsapp-btn {
+  background: #25d366;
+  color: white;
+}
+
+.whatsapp-btn:hover {
+  background: #22c55e;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .header-text {
+    text-align: center;
+  }
 }
 
 .calculator-header h2 {
@@ -1023,5 +1102,71 @@
 
   .total-summary {
     padding: 0.75rem;
+  }
+}
+
+/* Additional Mobile Responsive Improvements */
+@media (max-width: 480px) {
+  .app {
+    padding: 10px;
+    background-attachment: scroll;
+  }
+  
+  .app-header h1 {
+    font-size: 2rem;
+  }
+  
+  .app-header p {
+    font-size: 1rem;
+  }
+  
+  .image-upload,
+  .bill-calculator {
+    padding: 1rem;
+    border-radius: 12px;
+    width: calc(100% - 20px);
+    max-width: none;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  
+  .header-text {
+    text-align: center;
+  }
+  
+  .header-actions {
+    justify-content: center;
+  }
+  
+  .action-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+/* Tablet Responsive */
+@media (max-width: 768px) and (min-width: 481px) {
+  .app {
+    padding: 15px;
+    background-attachment: scroll;
+  }
+  
+  .image-upload,
+  .bill-calculator {
+    padding: 1.5rem;
+    width: calc(100% - 30px);
+  }
+  
+  .header-content {
+    justify-content: center;
+    text-align: center;
+  }
+  
+  .header-text {
+    text-align: center;
   }
 }
