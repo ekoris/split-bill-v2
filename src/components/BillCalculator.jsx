@@ -507,30 +507,6 @@ const BillCalculator = ({ extractedData, onReset }) => {
       </div>
 
       <div className="calculator-content">
-        {/* Parsing Test Section */}
-        <div className="parsing-test-section">
-          <h3>Test Receipt Parsing</h3>
-          <textarea
-            value={testText}
-            onChange={(e) => setTestText(e.target.value)}
-            placeholder="Paste receipt text here...\n\nExample:\n1 2x NasiBabat Rp50.000\n1 1x Ayam rendang Rp18.000\n(2) 1x Nasi ayam rendang Rp25.000\n8 1x Es kopi Rp7.000\nSubtotal Pesanan (5 menu) Rp100.000\nVoucher Diskon -Rp40.000\nBiaya Pengiriman @ Rp0\nBiaya Layanan © Rp1.000\nRp61.000"
-            rows={8}
-            className="test-textarea"
-          />
-          <button onClick={testParsing} className="test-btn">
-            Parse Text
-          </button>
-          
-          {parsedResult && (
-            <div className="parsed-result">
-              <h4>Parsed Result:</h4>
-              <pre className="json-output">
-                {JSON.stringify(parsedResult, null, 2)}
-              </pre>
-            </div>
-          )}
-        </div>
-
         {/* Items Section */}
         <div className="items-section">
           <div className="items-header">
